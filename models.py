@@ -7,9 +7,9 @@ import datetime
 #from BeautifulSoup import BeautifulSoup
 import time
 import lxml.html
-import urlparse
+from urlparse import urlparse
 import tldextract
-from django.core.exceptions import ObjectDoesNotExist
+
 
 
 class Article(models.Model):
@@ -24,48 +24,68 @@ class Article(models.Model):
     def __str__(self):
         return self.article_address
 
-#Simple function to check if the domain is in the Domains list
+    #Checks to see the object domain is in the list of allowed domains
+    #returns True or False
     def checkDomain(self):
-        #domainName = Domains()
-        #return domainName.registered_list.__contains__(address.domain)
-        try:
-            address = tldextract.extract(self.article_address)
-            test = Domain.objects.get(registered_domain__contains=address.domain)
-            print(test)
-        except ObjectNotExist as error:
-            print(test)
-
-        
-
-
-
-
-    def checkTitle(self):
-        '''
         start = time.time()
-        response = urllib2.urlopen(self.article_address)
-        html = response.read()
-        soup = BeautifulSoup(html)
-        title = soup.html.head.title
-        #self.article_title = title
+        domainName = Domain()
+        #tldextract is not effiecient enough
+        #address = tldextract.extract(self.article_address)
+        address = urlparse(self.article_address)
         end = time.time()
-        print("urlib2: ", end - start)
-        '''
+        print(address.hostname, "checkDomain: ", end - start)
+        return Domain.objects.filter(registered_domain__contains=address.hostname).exists()
 
+    #returns the extracted title heading from a webpage
+    def getTitleFromUrl(self):
         start = time.time()
         t = lxml.html.parse(self.article_address)
         urlTitle = t.find(".//title").text
         end = time.time()
-        print("lxmlParse: ", end - start)
+        print("checkTitle: ", end - start)
         return urlTitle
+
+    def setAuthDomain(self):
+        self.authorised_domain = self.checkDomain()
+
+    def setTitle(self):
+        self.article_title = self.getTitleFromUrl()
 
     def getTitle(self):
         return self.article_title
 
 
 class Domain(models.Model):
+    #trusted_sources* is for testing of various effeciencies
+    trusted_sources_dict = {"bbc" : True,
+                       "www.cnn.com" : True,
+                       "www.jpost.com": True,
+                       "www.ynetnews.com" : True
+                            }
+
+    trusted_sources_list = ["bbc",
+                       "www.cnn.com",
+                       "www.jpost.com",
+                       "www.ynetnews.com"
+                            ]
     registered_domain = models.CharField(max_length=10, unique=True)
 
     def __str__(self):
         return self.registered_domain
+
+'''
+    def binarySearch(self, item):
+	        if len(self.trusted_sources_list) == 0:
+	            return False
+	        else:
+	            midpoint = len(self.trusted_sources_list)//2
+	            if self.trusted_sources_list[midpoint]==item:
+	              return True
+	            else:
+	              if item<self.trusted_sources_list[midpoint]:
+	                return self.binarySearch(self.trusted_sources_list[:midpoint],item)
+	              else:
+	                return self.binarySearch(self.trusted_sources_list[midpoint+1:],item)
+            
+'''
 
